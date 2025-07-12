@@ -391,10 +391,16 @@ async def call_claude(prompt: str, max_retries: int = 3) -> str:
     """
     Llama a Claude con reintentos automáticos
     """
+    if not client:
+        raise HTTPException(
+            status_code=503,
+            detail="Servicio de análisis no disponible. Verifique ANTHROPIC_API_KEY."
+        )
+    
     for attempt in range(max_retries):
         try:
             message = client.messages.create(
-                model="claude-3-5-sonnet-20241022",  # Modelo más reciente
+                model="claude-3-5-sonnet-20241022",
                 max_tokens=4096,
                 temperature=0.1,
                 messages=[
@@ -408,20 +414,14 @@ async def call_claude(prompt: str, max_retries: int = 3) -> str:
             else:
                 return str(message.content[0])
                 
-        except anthropic.RateLimitError:
-            if attempt < max_retries - 1:
+        except Exception as e:
+            if "rate" in str(e).lower() and attempt < max_retries - 1:
                 wait_time = (attempt + 1) * 2
                 logger.warning(f"Rate limit alcanzado, esperando {wait_time} segundos...")
                 await asyncio.sleep(wait_time)
             else:
-                raise HTTPException(status_code=429, detail="Límite de API excedido, intente más tarde")
-        except anthropic.APIError as e:
-            logger.error(f"Error de API Anthropic: {e}")
-            raise HTTPException(status_code=502, detail=f"Error del servicio de análisis: {str(e)}")
-        except Exception as e:
-            logger.error(f"Error inesperado llamando a Claude: {e}")
-            raise HTTPException(status_code=500, detail=f"Error inesperado: {str(e)}")
-
+                logger.error(f"Error llamando a Claude: {e}")
+                raise HTTPException(status_code=502, detail=f"Error del servicio: {str(e)}")
 # ===========================
 # ENDPOINTS
 # ===========================
