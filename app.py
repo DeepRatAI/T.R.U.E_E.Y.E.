@@ -8,7 +8,6 @@ import re
 
 import aiohttp
 from bs4 import BeautifulSoup
-import anthropic
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
@@ -27,11 +26,22 @@ logger = logging.getLogger(__name__)
 # Validar API Key de Anthropic
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 if not ANTHROPIC_API_KEY:
-    logger.error("❌ ANTHROPIC_API_KEY no está configurada")
-    raise ValueError("ANTHROPIC_API_KEY es requerida. Configúrala en las variables de entorno de Railway.")
+    logger.warning("⚠️ ANTHROPIC_API_KEY no está configurada - el servicio iniciará pero fallará al analizar")
+else:
+    logger.info("✅ ANTHROPIC_API_KEY configurada")
 
-# Inicializar cliente Anthropic
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+# Inicializar cliente Anthropic de forma segura
+client = None
+try:
+    import anthropic
+    if ANTHROPIC_API_KEY:
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        logger.info("✅ Cliente Anthropic inicializado correctamente")
+except Exception as e:
+    logger.error(f"❌ Error inicializando cliente Anthropic: {e}")
+    client = None
+
+# [RESTO DEL CÓDIGO CONTINÚA IGUAL...]
 
 # ===========================
 # PROMPTS DEL FLOW ORIGINAL
